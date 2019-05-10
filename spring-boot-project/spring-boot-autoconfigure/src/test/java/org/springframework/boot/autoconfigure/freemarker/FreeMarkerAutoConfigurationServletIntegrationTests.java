@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2018 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -24,13 +24,14 @@ import java.util.Map;
 import javax.servlet.DispatcherType;
 import javax.servlet.http.HttpServletRequest;
 
-import org.junit.After;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
 
 import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
 import org.springframework.boot.autoconfigure.context.PropertyPlaceholderAutoConfiguration;
 import org.springframework.boot.test.util.TestPropertyValues;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.springframework.boot.web.servlet.context.AnnotationConfigServletWebApplicationContext;
 import org.springframework.boot.web.servlet.filter.OrderedCharacterEncodingFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -38,7 +39,6 @@ import org.springframework.context.annotation.Import;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.mock.web.MockServletContext;
-import org.springframework.web.context.support.AnnotationConfigWebApplicationContext;
 import org.springframework.web.servlet.View;
 import org.springframework.web.servlet.resource.ResourceUrlEncodingFilter;
 import org.springframework.web.servlet.support.RequestContext;
@@ -57,9 +57,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 public class FreeMarkerAutoConfigurationServletIntegrationTests {
 
-	private AnnotationConfigWebApplicationContext context;
+	private AnnotationConfigServletWebApplicationContext context;
 
-	@After
+	@AfterEach
 	public void close() {
 		if (this.context != null) {
 			this.context.close();
@@ -206,7 +206,7 @@ public class FreeMarkerAutoConfigurationServletIntegrationTests {
 	}
 
 	private void load(Class<?> config, String... env) {
-		this.context = new AnnotationConfigWebApplicationContext();
+		this.context = new AnnotationConfigServletWebApplicationContext();
 		this.context.setServletContext(new MockServletContext());
 		TestPropertyValues.of(env).applyTo(this.context);
 		this.context.register(config);
@@ -230,20 +230,20 @@ public class FreeMarkerAutoConfigurationServletIntegrationTests {
 		return response;
 	}
 
-	@Configuration
+	@Configuration(proxyBeanMethods = false)
 	@ImportAutoConfiguration({ FreeMarkerAutoConfiguration.class,
 			PropertyPlaceholderAutoConfiguration.class })
 	static class BaseConfiguration {
 
 	}
 
-	@Configuration
+	@Configuration(proxyBeanMethods = false)
 	@Import(BaseConfiguration.class)
 	static class FilterRegistrationResourceConfiguration {
 
 		@Bean
 		public FilterRegistrationBean<ResourceUrlEncodingFilter> filterRegistration() {
-			FilterRegistrationBean<ResourceUrlEncodingFilter> bean = new FilterRegistrationBean<ResourceUrlEncodingFilter>(
+			FilterRegistrationBean<ResourceUrlEncodingFilter> bean = new FilterRegistrationBean<>(
 					new ResourceUrlEncodingFilter());
 			bean.setDispatcherTypes(EnumSet.of(DispatcherType.INCLUDE));
 			return bean;
@@ -251,14 +251,13 @@ public class FreeMarkerAutoConfigurationServletIntegrationTests {
 
 	}
 
-	@Configuration
+	@Configuration(proxyBeanMethods = false)
 	@Import(BaseConfiguration.class)
 	static class FilterRegistrationOtherConfiguration {
 
 		@Bean
 		public FilterRegistrationBean<OrderedCharacterEncodingFilter> filterRegistration() {
-			return new FilterRegistrationBean<OrderedCharacterEncodingFilter>(
-					new OrderedCharacterEncodingFilter());
+			return new FilterRegistrationBean<>(new OrderedCharacterEncodingFilter());
 		}
 
 	}

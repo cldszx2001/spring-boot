@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2018 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,10 +16,10 @@
 
 package org.springframework.boot.autoconfigure.session;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
-import org.springframework.beans.DirectFieldAccessor;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
 import org.springframework.boot.autoconfigure.session.RedisSessionConfiguration.SpringBootRedisHttpSessionConfiguration;
@@ -42,10 +42,11 @@ import static org.assertj.core.api.Assertions.assertThat;
  * @author Stephane Nicoll
  * @author Vedran Pavic
  */
+@Testcontainers
 public class SessionAutoConfigurationRedisTests
 		extends AbstractSessionAutoConfigurationTests {
 
-	@ClassRule
+	@Container
 	public static RedisContainer redis = new RedisContainer();
 
 	protected final WebApplicationContextRunner contextRunner = new WebApplicationContextRunner()
@@ -94,12 +95,12 @@ public class SessionAutoConfigurationRedisTests
 					context, RedisOperationsSessionRepository.class);
 			assertThat(repository.getSessionCreatedChannelPrefix())
 					.isEqualTo(sessionCreatedChannelPrefix);
-			assertThat(new DirectFieldAccessor(repository)
-					.getPropertyValue("redisFlushMode")).isEqualTo(flushMode);
+			assertThat(repository).hasFieldOrPropertyWithValue("redisFlushMode",
+					flushMode);
 			SpringBootRedisHttpSessionConfiguration configuration = context
 					.getBean(SpringBootRedisHttpSessionConfiguration.class);
-			assertThat(new DirectFieldAccessor(configuration)
-					.getPropertyValue("cleanupCron")).isEqualTo(cleanupCron);
+			assertThat(configuration).hasFieldOrPropertyWithValue("cleanupCron",
+					cleanupCron);
 		};
 	}
 

@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -91,12 +91,12 @@ class CloudFoundryWebEndpointServletHandlerMapping
 			}
 			AccessLevel accessLevel = (AccessLevel) request
 					.getAttribute(AccessLevel.REQUEST_ATTRIBUTE);
-			Map<String, Link> links = CloudFoundryWebEndpointServletHandlerMapping.this.linksResolver
-					.resolveLinks(request.getRequestURL().toString());
 			Map<String, Link> filteredLinks = new LinkedHashMap<>();
 			if (accessLevel == null) {
 				return Collections.singletonMap("_links", filteredLinks);
 			}
+			Map<String, Link> links = CloudFoundryWebEndpointServletHandlerMapping.this.linksResolver
+					.resolveLinks(request.getRequestURL().toString());
 			filteredLinks = links.entrySet().stream()
 					.filter((e) -> e.getKey().equals("self")
 							|| accessLevel.isAccessAllowed(e.getKey()))

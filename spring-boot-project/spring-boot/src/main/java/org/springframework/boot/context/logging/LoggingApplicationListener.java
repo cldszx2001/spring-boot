@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2018 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -68,8 +68,8 @@ import org.springframework.util.StringUtils;
  * {@literal java -jar myapp.jar [--debug | --trace]}). If you prefer to ignore these
  * properties you can set {@link #setParseArgs(boolean) parseArgs} to {@code false}.
  * <p>
- * By default, log output is only written to the console. If a log file is required the
- * {@code logging.path} and {@code logging.file} properties can be used.
+ * By default, log output is only written to the console. If a log file is required, the
+ * {@code logging.file.path} and {@code logging.file.name} properties can be used.
  * <p>
  * Some system properties may be set as side effects, and these can be useful if the
  * logging configuration supports placeholders (i.e. log4j or logback):
@@ -135,11 +135,11 @@ public class LoggingApplicationListener implements GenericApplicationListener {
 				"org.springframework.boot.web.servlet.ServletContextInitializerBeans");
 		loggers.add("sql", "org.springframework.jdbc.core");
 		loggers.add("sql", "org.hibernate.SQL");
+		loggers.add("sql", "org.jooq.tools.LoggerListener");
 		DEFAULT_GROUP_LOGGERS = Collections.unmodifiableMap(loggers);
 	}
 
 	private static final Map<LogLevel, List<String>> LOG_LEVEL_LOGGERS;
-
 	static {
 		MultiValueMap<LogLevel, String> loggers = new LinkedMultiValueMap<>();
 		loggers.add(LogLevel.DEBUG, "sql");
@@ -320,12 +320,17 @@ public class LoggingApplicationListener implements GenericApplicationListener {
 	}
 
 	protected void initializeLogLevel(LoggingSystem system, LogLevel level) {
-		List<String> loggers = LOG_LEVEL_LOGGERS.get(level);
-		if (loggers != null) {
-			for (String logger : loggers) {
-				system.setLogLevel(logger, level);
-			}
+		LOG_LEVEL_LOGGERS.getOrDefault(level, Collections.emptyList())
+				.forEach((logger) -> initializeLogLevel(system, level, logger));
+	}
+
+	private void initializeLogLevel(LoggingSystem system, LogLevel level, String logger) {
+		List<String> groupLoggers = DEFAULT_GROUP_LOGGERS.get(logger);
+		if (groupLoggers == null) {
+			system.setLogLevel(logger, level);
+			return;
 		}
+		groupLoggers.forEach((groupLogger) -> system.setLogLevel(groupLogger, level));
 	}
 
 	protected void setLogLevels(LoggingSystem system, Environment environment) {

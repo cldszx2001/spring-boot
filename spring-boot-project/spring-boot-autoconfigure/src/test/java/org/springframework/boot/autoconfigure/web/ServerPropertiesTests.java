@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2018 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -26,7 +26,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
-import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -41,8 +40,9 @@ import org.apache.catalina.valves.RemoteIpValve;
 import org.apache.coyote.AbstractProtocol;
 import org.eclipse.jetty.server.HttpChannel;
 import org.eclipse.jetty.server.Request;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
+import org.springframework.boot.autoconfigure.web.ServerProperties.Tomcat.Accesslog;
 import org.springframework.boot.context.properties.bind.Bindable;
 import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.boot.context.properties.source.ConfigurationPropertySource;
@@ -73,6 +73,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * @author Eddú Meléndez
  * @author Quinten De Swaef
  * @author Venil Noronha
+ * @author Andrew McGhie
  */
 public class ServerPropertiesTests {
 
@@ -112,24 +113,37 @@ public class ServerPropertiesTests {
 	@Test
 	public void testTomcatBinding() {
 		Map<String, String> map = new HashMap<>();
+		map.put("server.tomcat.accesslog.conditionIf", "foo");
+		map.put("server.tomcat.accesslog.conditionUnless", "bar");
 		map.put("server.tomcat.accesslog.pattern", "%h %t '%r' %s %b");
 		map.put("server.tomcat.accesslog.prefix", "foo");
+		map.put("server.tomcat.accesslog.suffix", "-bar.log");
+		map.put("server.tomcat.accesslog.encoding", "UTF-8");
+		map.put("server.tomcat.accesslog.locale", "en-AU");
+		map.put("server.tomcat.accesslog.checkExists", "true");
 		map.put("server.tomcat.accesslog.rotate", "false");
 		map.put("server.tomcat.accesslog.rename-on-rotate", "true");
+		map.put("server.tomcat.accesslog.ipv6Canonical", "true");
 		map.put("server.tomcat.accesslog.request-attributes-enabled", "true");
-		map.put("server.tomcat.accesslog.suffix", "-bar.log");
 		map.put("server.tomcat.protocol-header", "X-Forwarded-Protocol");
 		map.put("server.tomcat.remote-ip-header", "Remote-Ip");
 		map.put("server.tomcat.internal-proxies", "10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}");
 		map.put("server.tomcat.background-processor-delay", "10");
 		bind(map);
 		ServerProperties.Tomcat tomcat = this.properties.getTomcat();
-		assertThat(tomcat.getAccesslog().getPattern()).isEqualTo("%h %t '%r' %s %b");
-		assertThat(tomcat.getAccesslog().getPrefix()).isEqualTo("foo");
-		assertThat(tomcat.getAccesslog().isRotate()).isFalse();
-		assertThat(tomcat.getAccesslog().isRenameOnRotate()).isTrue();
-		assertThat(tomcat.getAccesslog().isRequestAttributesEnabled()).isTrue();
-		assertThat(tomcat.getAccesslog().getSuffix()).isEqualTo("-bar.log");
+		Accesslog accesslog = tomcat.getAccesslog();
+		assertThat(accesslog.getConditionIf()).isEqualTo("foo");
+		assertThat(accesslog.getConditionUnless()).isEqualTo("bar");
+		assertThat(accesslog.getPattern()).isEqualTo("%h %t '%r' %s %b");
+		assertThat(accesslog.getPrefix()).isEqualTo("foo");
+		assertThat(accesslog.getSuffix()).isEqualTo("-bar.log");
+		assertThat(accesslog.getEncoding()).isEqualTo("UTF-8");
+		assertThat(accesslog.getLocale()).isEqualTo("en-AU");
+		assertThat(accesslog.isCheckExists()).isEqualTo(true);
+		assertThat(accesslog.isRotate()).isFalse();
+		assertThat(accesslog.isRenameOnRotate()).isTrue();
+		assertThat(accesslog.isIpv6Canonical()).isTrue();
+		assertThat(accesslog.isRequestAttributesEnabled()).isTrue();
 		assertThat(tomcat.getRemoteIpHeader()).isEqualTo("Remote-Ip");
 		assertThat(tomcat.getProtocolHeader()).isEqualTo("X-Forwarded-Protocol");
 		assertThat(tomcat.getInternalProxies())
@@ -148,6 +162,32 @@ public class ServerPropertiesTests {
 	public void testSlashOfContextPathIsDefaultValue() {
 		bind("server.servlet.context-path", "/");
 		assertThat(this.properties.getServlet().getContextPath()).isEqualTo("");
+	}
+
+	@Test
+	public void testContextPathWithLeadingWhitespace() {
+		bind("server.servlet.context-path", " /assets");
+		assertThat(this.properties.getServlet().getContextPath()).isEqualTo("/assets");
+	}
+
+	@Test
+	public void testContextPathWithTrailingWhitespace() {
+		bind("server.servlet.context-path", "/assets/copy/ ");
+		assertThat(this.properties.getServlet().getContextPath())
+				.isEqualTo("/assets/copy");
+	}
+
+	@Test
+	public void testContextPathWithLeadingAndTrailingWhitespace() {
+		bind("server.servlet.context-path", " /assets ");
+		assertThat(this.properties.getServlet().getContextPath()).isEqualTo("/assets");
+	}
+
+	@Test
+	public void testContextPathWithLeadingAndTrailingWhitespaceAndContextWithSpace() {
+		bind("server.servlet.context-path", "  /assets /copy/    ");
+		assertThat(this.properties.getServlet().getContextPath())
+				.isEqualTo("/assets /copy");
 	}
 
 	@Test
@@ -191,6 +231,8 @@ public class ServerPropertiesTests {
 		map.put("server.jetty.accesslog.file-date-format", "yyyymmdd");
 		map.put("server.jetty.accesslog.retention-period", "4");
 		map.put("server.jetty.accesslog.append", "true");
+		map.put("server.jetty.accesslog.prefer-proxied-for-address", "true");
+		map.put("server.jetty.accesslog.ignore-paths", "/a/path,/b/path");
 		bind(map);
 		ServerProperties.Jetty jetty = this.properties.getJetty();
 		assertThat(jetty.getAccesslog().isEnabled()).isTrue();
@@ -198,12 +240,21 @@ public class ServerPropertiesTests {
 		assertThat(jetty.getAccesslog().getFileDateFormat()).isEqualTo("yyyymmdd");
 		assertThat(jetty.getAccesslog().getRetentionPeriod()).isEqualTo(4);
 		assertThat(jetty.getAccesslog().isAppend()).isTrue();
+		assertThat(jetty.getAccesslog().isPreferProxiedForAddress()).isTrue();
+		assertThat(jetty.getAccesslog().getIgnorePaths()).containsExactly("/a/path",
+				"/b/path");
 	}
 
 	@Test
 	public void tomcatAcceptCountMatchesProtocolDefault() throws Exception {
 		assertThat(this.properties.getTomcat().getAcceptCount())
 				.isEqualTo(getDefaultProtocol().getAcceptCount());
+	}
+
+	@Test
+	public void tomcatProcessorCacheMatchesProtocolDefault() throws Exception {
+		assertThat(this.properties.getTomcat().getProcessorCache())
+				.isEqualTo(getDefaultProtocol().getProcessorCache());
 	}
 
 	@Test
@@ -270,13 +321,9 @@ public class ServerPropertiesTests {
 	@Test
 	public void jettyMaxHttpPostSizeMatchesDefault() throws Exception {
 		JettyServletWebServerFactory jettyFactory = new JettyServletWebServerFactory(0);
-		JettyWebServer jetty = (JettyWebServer) jettyFactory
-				.getWebServer(new ServletContextInitializer() {
-
-					@Override
-					public void onStartup(ServletContext servletContext)
-							throws ServletException {
-						servletContext.addServlet("formPost", new HttpServlet() {
+		JettyWebServer jetty = (JettyWebServer) jettyFactory.getWebServer(
+				(ServletContextInitializer) (servletContext) -> servletContext
+						.addServlet("formPost", new HttpServlet() {
 
 							@Override
 							protected void doPost(HttpServletRequest req,
@@ -285,10 +332,7 @@ public class ServerPropertiesTests {
 								req.getParameterMap();
 							}
 
-						}).addMapping("/form");
-					}
-
-				});
+						}).addMapping("/form"));
 		jetty.start();
 		org.eclipse.jetty.server.Connector connector = jetty.getServer()
 				.getConnectors()[0];

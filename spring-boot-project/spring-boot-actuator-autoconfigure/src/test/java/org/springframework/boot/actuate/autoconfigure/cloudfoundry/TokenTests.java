@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2018 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,7 +18,7 @@ package org.springframework.boot.actuate.autoconfigure.cloudfoundry;
 
 import java.util.function.Consumer;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import org.springframework.boot.actuate.autoconfigure.cloudfoundry.CloudFoundryAuthorizationException.Reason;
 import org.springframework.util.Base64Utils;
@@ -92,7 +92,7 @@ public class TokenTests {
 		String claims = "{\"exp\": 2147483647, \"iss\": \"http://localhost:8080/uaa/oauth/token\"}";
 		Token token = createToken(header, claims);
 		assertThatExceptionOfType(CloudFoundryAuthorizationException.class)
-				.isThrownBy(() -> token.getSignatureAlgorithm())
+				.isThrownBy(token::getSignatureAlgorithm)
 				.satisfies(reasonRequirement(Reason.INVALID_TOKEN));
 	}
 
@@ -102,7 +102,7 @@ public class TokenTests {
 		String claims = "{\"exp\": 2147483647}";
 		Token token = createToken(header, claims);
 		assertThatExceptionOfType(CloudFoundryAuthorizationException.class)
-				.isThrownBy(() -> token.getIssuer())
+				.isThrownBy(token::getIssuer)
 				.satisfies(reasonRequirement(Reason.INVALID_TOKEN));
 	}
 
@@ -112,7 +112,7 @@ public class TokenTests {
 		String claims = "{\"exp\": 2147483647}";
 		Token token = createToken(header, claims);
 		assertThatExceptionOfType(CloudFoundryAuthorizationException.class)
-				.isThrownBy(() -> token.getKeyId())
+				.isThrownBy(token::getKeyId)
 				.satisfies(reasonRequirement(Reason.INVALID_TOKEN));
 	}
 
@@ -122,7 +122,7 @@ public class TokenTests {
 		String claims = "{\"iss\": \"http://localhost:8080/uaa/oauth/token\"" + "}";
 		Token token = createToken(header, claims);
 		assertThatExceptionOfType(CloudFoundryAuthorizationException.class)
-				.isThrownBy(() -> token.getExpiry())
+				.isThrownBy(token::getExpiry)
 				.satisfies(reasonRequirement(Reason.INVALID_TOKEN));
 	}
 

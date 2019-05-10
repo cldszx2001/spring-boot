@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2018 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,11 +21,15 @@ import java.io.FileInputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
+import java.security.PrivateKey;
+import java.security.cert.X509Certificate;
 import java.time.Duration;
 import java.util.Arrays;
 
+import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLException;
+import javax.net.ssl.X509KeyManager;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
@@ -62,6 +66,7 @@ import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Base for testing classes that extends {@link AbstractReactiveWebServerFactory}.
@@ -100,7 +105,7 @@ public abstract class AbstractReactiveWebServerFactoryTests {
 				.contentType(MediaType.TEXT_PLAIN)
 				.body(BodyInserters.fromObject("Hello World")).exchange()
 				.flatMap((response) -> response.bodyToMono(String.class));
-		assertThat(result.block()).isEqualTo("Hello World");
+		assertThat(result.block(Duration.ofSeconds(30))).isEqualTo("Hello World");
 		assertThat(this.webServer.getPort()).isEqualTo(specificPort);
 	}
 
@@ -129,7 +134,7 @@ public abstract class AbstractReactiveWebServerFactoryTests {
 		Mono<String> result = client.post().uri("/test").contentType(MediaType.TEXT_PLAIN)
 				.body(BodyInserters.fromObject("Hello World")).exchange()
 				.flatMap((response) -> response.bodyToMono(String.class));
-		assertThat(result.block()).isEqualTo("Hello World");
+		assertThat(result.block(Duration.ofSeconds(30))).isEqualTo("Hello World");
 	}
 
 	protected ReactorClientHttpConnector buildTrustAllSslConnector() {
@@ -170,13 +175,24 @@ public abstract class AbstractReactiveWebServerFactoryTests {
 		KeyManagerFactory clientKeyManagerFactory = KeyManagerFactory
 				.getInstance(KeyManagerFactory.getDefaultAlgorithm());
 		clientKeyManagerFactory.init(clientKeyStore, "password".toCharArray());
-		SslContextBuilder builder = SslContextBuilder.forClient()
-				.sslProvider(SslProvider.JDK)
-				.trustManager(InsecureTrustManagerFactory.INSTANCE)
-				.keyManager(clientKeyManagerFactory);
-		HttpClient client = HttpClient.create().wiretap(true)
-				.secure((sslContextSpec) -> sslContextSpec.sslContext(builder));
-		return new ReactorClientHttpConnector(client);
+		for (KeyManager keyManager : clientKeyManagerFactory.getKeyManagers()) {
+			if (keyManager instanceof X509KeyManager) {
+				X509KeyManager x509KeyManager = (X509KeyManager) keyManager;
+				PrivateKey privateKey = x509KeyManager.getPrivateKey("spring-boot");
+				if (privateKey != null) {
+					X509Certificate[] certificateChain = x509KeyManager
+							.getCertificateChain("spring-boot");
+					SslContextBuilder builder = SslContextBuilder.forClient()
+							.sslProvider(SslProvider.JDK)
+							.trustManager(InsecureTrustManagerFactory.INSTANCE)
+							.keyManager(privateKey, certificateChain);
+					HttpClient client = HttpClient.create().wiretap(true).secure(
+							(sslContextSpec) -> sslContextSpec.sslContext(builder));
+					return new ReactorClientHttpConnector(client);
+				}
+			}
+		}
+		throw new IllegalStateException("Key with alias 'spring-boot' not found");
 	}
 
 	protected void testClientAuthSuccess(Ssl sslConfiguration,
@@ -191,7 +207,7 @@ public abstract class AbstractReactiveWebServerFactoryTests {
 		Mono<String> result = client.post().uri("/test").contentType(MediaType.TEXT_PLAIN)
 				.body(BodyInserters.fromObject("Hello World")).exchange()
 				.flatMap((response) -> response.bodyToMono(String.class));
-		assertThat(result.block()).isEqualTo("Hello World");
+		assertThat(result.block(Duration.ofSeconds(30))).isEqualTo("Hello World");
 	}
 
 	@Test
@@ -246,7 +262,7 @@ public abstract class AbstractReactiveWebServerFactoryTests {
 	public void compressionOfResponseToGetRequest() {
 		WebClient client = prepareCompressionTest();
 		ResponseEntity<Void> response = client.get().exchange()
-				.flatMap((res) -> res.toEntity(Void.class)).block();
+				.flatMap((res) -> res.toEntity(Void.class)).block(Duration.ofSeconds(30));
 		assertResponseIsCompressed(response);
 	}
 
@@ -254,7 +270,7 @@ public abstract class AbstractReactiveWebServerFactoryTests {
 	public void compressionOfResponseToPostRequest() {
 		WebClient client = prepareCompressionTest();
 		ResponseEntity<Void> response = client.post().exchange()
-				.flatMap((res) -> res.toEntity(Void.class)).block();
+				.flatMap((res) -> res.toEntity(Void.class)).block(Duration.ofSeconds(30));
 		assertResponseIsCompressed(response);
 	}
 
@@ -265,7 +281,7 @@ public abstract class AbstractReactiveWebServerFactoryTests {
 		compression.setMinResponseSize(DataSize.ofBytes(3001));
 		WebClient client = prepareCompressionTest(compression);
 		ResponseEntity<Void> response = client.get().exchange()
-				.flatMap((res) -> res.toEntity(Void.class)).block();
+				.flatMap((res) -> res.toEntity(Void.class)).block(Duration.ofSeconds(30));
 		assertResponseIsNotCompressed(response);
 	}
 
@@ -275,7 +291,7 @@ public abstract class AbstractReactiveWebServerFactoryTests {
 		compression.setMimeTypes(new String[] { "application/json" });
 		WebClient client = prepareCompressionTest(compression);
 		ResponseEntity<Void> response = client.get().exchange()
-				.flatMap((res) -> res.toEntity(Void.class)).block();
+				.flatMap((res) -> res.toEntity(Void.class)).block(Duration.ofSeconds(30));
 		assertResponseIsNotCompressed(response);
 	}
 
@@ -286,8 +302,15 @@ public abstract class AbstractReactiveWebServerFactoryTests {
 		compression.setExcludedUserAgents(new String[] { "testUserAgent" });
 		WebClient client = prepareCompressionTest(compression);
 		ResponseEntity<Void> response = client.get().header("User-Agent", "testUserAgent")
-				.exchange().flatMap((res) -> res.toEntity(Void.class)).block();
+				.exchange().flatMap((res) -> res.toEntity(Void.class))
+				.block(Duration.ofSeconds(30));
 		assertResponseIsNotCompressed(response);
+	}
+
+	@Test
+	public void whenSslIsEnabledAndNoKeyStoreIsConfiguredThenServerFailsToStart() {
+		assertThatThrownBy(() -> testBasicSslWithKeyStore(null, null))
+				.hasMessageContaining("Could not load key store 'null'");
 	}
 
 	protected WebClient prepareCompressionTest() {
@@ -324,7 +347,7 @@ public abstract class AbstractReactiveWebServerFactoryTests {
 		this.webServer = factory.getWebServer(new XForwardedHandler());
 		this.webServer.start();
 		String body = getWebClient().build().get().header("X-Forwarded-Proto", "https")
-				.retrieve().bodyToMono(String.class).block();
+				.retrieve().bodyToMono(String.class).block(Duration.ofSeconds(30));
 		assertThat(body).isEqualTo("https");
 	}
 
